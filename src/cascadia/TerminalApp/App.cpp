@@ -109,7 +109,7 @@ namespace winrt::TerminalApp::implementation
         });
         _tabView.SelectionChanged({ this, &App::_OnTabSelectionChanged });
         _tabView.TabClosing({ this, &App::_OnTabClosing });
-        _tabView.Items().VectorChanged({ this, &App::_OnTabItemsChanged });
+        _tabView.Items().as<Windows::Foundation::Collections::IObservableVector<Windows::Foundation::IInspectable>>().VectorChanged({ this, &App::_OnTabItemsChanged });
         _root.Loaded({ this, &App::_OnLoaded });
 
         _CreateNewTabFlyout();
