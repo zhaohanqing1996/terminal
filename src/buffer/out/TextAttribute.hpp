@@ -31,72 +31,34 @@ class TextAttribute final
 {
 public:
     constexpr TextAttribute() noexcept :
-        _wAttrLegacy{ 0 },
+        _attrs{ CharacterAttributes::Normal },
         _foreground{},
         _background{},
-        _isBold{ false }
+        _hyperlinkId{ 0 }
     {
     }
 
-    constexpr TextAttribute(const WORD wLegacyAttr) noexcept :
-        _wAttrLegacy{ static_cast<WORD>(wLegacyAttr & META_ATTRS) },
-        _foreground{ static_cast<BYTE>(wLegacyAttr & FG_ATTRS) },
-        _background{ static_cast<BYTE>((wLegacyAttr & BG_ATTRS) >> 4) },
-        _isBold{ false }
+    explicit constexpr TextAttribute(const WORD wLegacyAttr) noexcept :
+        _attrs{ gsl::narrow_cast<WORD>(wLegacyAttr & USED_META_ATTRS) },
+        _foreground{ gsl::at(s_legacyForegroundColorMap, wLegacyAttr & FG_ATTRS) },
+        _background{ gsl::at(s_legacyBackgroundColorMap, (wLegacyAttr & BG_ATTRS) >> 4) },
+        _hyperlinkId{ 0 }
     {
-        // If we're given lead/trailing byte information with the legacy color, strip it.
-        WI_ClearAllFlags(_wAttrLegacy, COMMON_LVB_SBCSDBCS);
     }
 
     constexpr TextAttribute(const COLORREF rgbForeground,
                             const COLORREF rgbBackground) noexcept :
-        _wAttrLegacy{ 0 },
+        _attrs{ CharacterAttributes::Normal },
         _foreground{ rgbForeground },
         _background{ rgbBackground },
-        _isBold{ false }
+        _hyperlinkId{ 0 }
     {
     }
 
-    constexpr WORD GetLegacyAttributes() const noexcept
-    {
-        BYTE fg = (_foreground.GetIndex() & FG_ATTRS);
-        BYTE bg = (_background.GetIndex() << 4) & BG_ATTRS;
-        WORD meta = (_wAttrLegacy & META_ATTRS);
-        return (fg | bg | meta) | (_isBold ? FOREGROUND_INTENSITY : 0);
-    }
+    static void SetLegacyDefaultAttributes(const WORD defaultAttributes) noexcept;
+    static TextAttribute StripErroneousVT16VersionsOfLegacyDefaults(const TextAttribute& attribute) noexcept;
+    WORD GetLegacyAttributes() const noexcept;
 
-    // Method Description:
-    // - Returns a WORD with legacy-style attributes for this textattribute.
-    //      If either the foreground or background of this textattribute is not
-    //      a legacy attribute, then instead use the provided default index as
-    //      the value for that component.
-    // Arguments:
-    // - defaultFgIndex: the BYTE to use as the index for the foreground, should
-    //      the foreground not be a legacy style attribute.
-    // - defaultBgIndex: the BYTE to use as the index for the backgound, should
-    //      the background not be a legacy style attribute.
-    // Return Value:
-    // - a WORD with legacy-style attributes for this textattribute.
-    constexpr WORD GetLegacyAttributes(const BYTE defaultFgIndex,
-                                       const BYTE defaultBgIndex) const noexcept
-    {
-        BYTE fgIndex = _foreground.IsLegacy() ? _foreground.GetIndex() : defaultFgIndex;
-        BYTE bgIndex = _background.IsLegacy() ? _background.GetIndex() : defaultBgIndex;
-        BYTE fg = (fgIndex & FG_ATTRS);
-        BYTE bg = (bgIndex << 4) & BG_ATTRS;
-        WORD meta = (_wAttrLegacy & META_ATTRS);
-        return (fg | bg | meta) | (_isBold ? FOREGROUND_INTENSITY : 0);
-    }
-
-    COLORREF CalculateRgbForeground(std::basic_string_view<COLORREF> colorTable,
-                                    COLORREF defaultFgColor,
-                                    COLORREF defaultBgColor) const;
-    COLORREF CalculateRgbBackground(std::basic_string_view<COLORREF> colorTable,
-                                    COLORREF defaultFgColor,
-                                    COLORREF defaultBgColor) const;
-
-    bool IsLeadingByte() const noexcept;
-    bool IsTrailingByte() const noexcept;
     bool IsTopHorizontalDisplayed() const noexcept;
     bool IsBottomHorizontalDisplayed() const noexcept;
     bool IsLeftVerticalDisplayed() const noexcept;
@@ -105,61 +67,114 @@ public:
     void SetLeftVerticalDisplayed(const bool isDisplayed) noexcept;
     void SetRightVerticalDisplayed(const bool isDisplayed) noexcept;
 
-    void SetFromLegacy(const WORD wLegacy) noexcept;
-
-    void SetLegacyAttributes(const WORD attrs,
-                             const bool setForeground,
-                             const bool setBackground,
-                             const bool setMeta);
-
-    void SetIndexedAttributes(const std::optional<const BYTE> foreground,
-                              const std::optional<const BYTE> background) noexcept;
-
-    void SetMetaAttributes(const WORD wMeta) noexcept;
-    WORD GetMetaAttributes() const noexcept;
-
-    void Embolden() noexcept;
-    void Debolden() noexcept;
-
     void Invert() noexcept;
 
-    friend constexpr bool operator==(const TextAttribute& a, const TextAttribute& b) noexcept;
-    friend constexpr bool operator!=(const TextAttribute& a, const TextAttribute& b) noexcept;
-    friend constexpr bool operator==(const TextAttribute& attr, const WORD& legacyAttr) noexcept;
-    friend constexpr bool operator!=(const TextAttribute& attr, const WORD& legacyAttr) noexcept;
-    friend constexpr bool operator==(const WORD& legacyAttr, const TextAttribute& attr) noexcept;
-    friend constexpr bool operator!=(const WORD& legacyAttr, const TextAttribute& attr) noexcept;
+    inline bool operator==(const TextAttribute& other) const noexcept
+    {
+        return memcmp(this, &other, sizeof(TextAttribute)) == 0;
+    }
+
+    inline bool operator!=(const TextAttribute& other) const noexcept
+    {
+        return memcmp(this, &other, sizeof(TextAttribute)) != 0;
+    }
 
     bool IsLegacy() const noexcept;
-    bool IsBold() const noexcept;
+    bool IsIntense() const noexcept;
+    bool IsFaint() const noexcept;
+    bool IsItalic() const noexcept;
+    bool IsBlinking() const noexcept;
+    bool IsInvisible() const noexcept;
+    bool IsCrossedOut() const noexcept;
+    bool IsUnderlined() const noexcept;
+    bool IsDoublyUnderlined() const noexcept;
+    bool IsOverlined() const noexcept;
+    bool IsReverseVideo() const noexcept;
+    bool IsProtected() const noexcept;
 
-    void SetForeground(const COLORREF rgbForeground);
-    void SetBackground(const COLORREF rgbBackground);
-    void SetColor(const COLORREF rgbColor, const bool fIsForeground);
+    void SetIntense(bool isIntense) noexcept;
+    void SetFaint(bool isFaint) noexcept;
+    void SetItalic(bool isItalic) noexcept;
+    void SetBlinking(bool isBlinking) noexcept;
+    void SetInvisible(bool isInvisible) noexcept;
+    void SetCrossedOut(bool isCrossedOut) noexcept;
+    void SetUnderlined(bool isUnderlined) noexcept;
+    void SetDoublyUnderlined(bool isDoublyUnderlined) noexcept;
+    void SetOverlined(bool isOverlined) noexcept;
+    void SetReverseVideo(bool isReversed) noexcept;
+    void SetProtected(bool isProtected) noexcept;
+
+    constexpr void SetCharacterAttributes(const CharacterAttributes attrs) noexcept
+    {
+        _attrs = attrs;
+    }
+    constexpr CharacterAttributes GetCharacterAttributes() const noexcept
+    {
+        return _attrs;
+    }
+
+    bool IsHyperlink() const noexcept;
+
+    TextColor GetForeground() const noexcept;
+    TextColor GetBackground() const noexcept;
+    uint16_t GetHyperlinkId() const noexcept;
+    void SetForeground(const TextColor foreground) noexcept;
+    void SetBackground(const TextColor background) noexcept;
+    void SetForeground(const COLORREF rgbForeground) noexcept;
+    void SetBackground(const COLORREF rgbBackground) noexcept;
+    void SetIndexedForeground(const BYTE fgIndex) noexcept;
+    void SetIndexedBackground(const BYTE bgIndex) noexcept;
+    void SetIndexedForeground256(const BYTE fgIndex) noexcept;
+    void SetIndexedBackground256(const BYTE bgIndex) noexcept;
+    void SetColor(const COLORREF rgbColor, const bool fIsForeground) noexcept;
+    void SetHyperlinkId(uint16_t id) noexcept;
 
     void SetDefaultForeground() noexcept;
     void SetDefaultBackground() noexcept;
+    void SetDefaultRenditionAttributes() noexcept;
 
-    bool ForegroundIsDefault() const noexcept;
     bool BackgroundIsDefault() const noexcept;
 
-    constexpr bool IsRgb() const noexcept
+    void SetStandardErase() noexcept;
+
+    // This returns whether this attribute, if printed directly next to another attribute, for the space
+    // character, would look identical to the other one.
+    bool HasIdenticalVisualRepresentationForBlankSpace(const TextAttribute& other, const bool inverted = false) const noexcept
     {
-        return _foreground.IsRgb() || _background.IsRgb();
+        // sneaky-sneaky: I'm using xor here
+        // inverted is whether there's a global invert; Reverse is a local one.
+        // global ^ local == true : the background attribute is actually the visible foreground, so we care about the foregrounds being identical
+        // global ^ local == false: the foreground attribute is the visible foreground, so we care about the backgrounds being identical
+        const auto checkForeground = (inverted != IsReverseVideo());
+        return !IsAnyGridLineEnabled() && // grid lines have a visual representation
+               // crossed out, doubly and singly underlined have a visual representation
+               WI_AreAllFlagsClear(_attrs, CharacterAttributes::CrossedOut | CharacterAttributes::DoublyUnderlined | CharacterAttributes::Underlined) &&
+               // hyperlinks have a visual representation
+               !IsHyperlink() &&
+               // all other attributes do not have a visual representation
+               _attrs == other._attrs &&
+               ((checkForeground && _foreground == other._foreground) ||
+                (!checkForeground && _background == other._background)) &&
+               IsHyperlink() == other.IsHyperlink();
+    }
+
+    constexpr bool IsAnyGridLineEnabled() const noexcept
+    {
+        return WI_IsAnyFlagSet(_attrs, CharacterAttributes::TopGridline | CharacterAttributes::LeftGridline | CharacterAttributes::RightGridline | CharacterAttributes::BottomGridline);
+    }
+    constexpr bool HasAnyVisualAttributes() const noexcept
+    {
+        return GetCharacterAttributes() != CharacterAttributes::Normal || GetHyperlinkId() != 0;
     }
 
 private:
-    COLORREF _GetRgbForeground(std::basic_string_view<COLORREF> colorTable,
-                               COLORREF defaultColor) const;
-    COLORREF _GetRgbBackground(std::basic_string_view<COLORREF> colorTable,
-                               COLORREF defaultColor) const;
-    bool _IsReverseVideo() const noexcept;
-    void _SetBoldness(const bool isBold) noexcept;
+    static std::array<TextColor, 16> s_legacyForegroundColorMap;
+    static std::array<TextColor, 16> s_legacyBackgroundColorMap;
 
-    WORD _wAttrLegacy;
-    TextColor _foreground;
-    TextColor _background;
-    bool _isBold;
+    CharacterAttributes _attrs; // sizeof: 2, alignof: 2
+    uint16_t _hyperlinkId; // sizeof: 2, alignof: 2
+    TextColor _foreground; // sizeof: 4, alignof: 1
+    TextColor _background; // sizeof: 4, alignof: 1
 
 #ifdef UNIT_TESTING
     friend class TextBufferTests;
@@ -176,43 +191,10 @@ enum class TextAttributeBehavior
     StoredOnly, // only use the contained text attribute and skip the insertion of anything else
 };
 
-constexpr bool operator==(const TextAttribute& a, const TextAttribute& b) noexcept
-{
-    return a._wAttrLegacy == b._wAttrLegacy &&
-           a._foreground == b._foreground &&
-           a._background == b._background &&
-           a._isBold == b._isBold;
-}
-
-constexpr bool operator!=(const TextAttribute& a, const TextAttribute& b) noexcept
-{
-    return !(a == b);
-}
-
-constexpr bool operator==(const TextAttribute& attr, const WORD& legacyAttr) noexcept
-{
-    return attr.GetLegacyAttributes() == legacyAttr;
-}
-
-constexpr bool operator!=(const TextAttribute& attr, const WORD& legacyAttr) noexcept
-{
-    return !(attr == legacyAttr);
-}
-
-constexpr bool operator==(const WORD& legacyAttr, const TextAttribute& attr) noexcept
-{
-    return attr == legacyAttr;
-}
-
-constexpr bool operator!=(const WORD& legacyAttr, const TextAttribute& attr) noexcept
-{
-    return !(attr == legacyAttr);
-}
-
 #ifdef UNIT_TESTING
 
 #define LOG_ATTR(attr) (Log::Comment(NoThrowString().Format( \
-    L#attr L"=%s", VerifyOutputTraits<TextAttribute>::ToString(attr).GetBuffer())))
+    L## #attr L"=%s", VerifyOutputTraits<TextAttribute>::ToString(attr).GetBuffer())))
 
 namespace WEX
 {
@@ -225,11 +207,11 @@ namespace WEX
             static WEX::Common::NoThrowString ToString(const TextAttribute& attr)
             {
                 return WEX::Common::NoThrowString().Format(
-                    L"{FG:%s,BG:%s,bold:%d,wLegacy:(0x%04x)}",
+                    L"{FG:%s,BG:%s,intense:%d,attrs:(0x%02x)}",
                     VerifyOutputTraits<TextColor>::ToString(attr._foreground).GetBuffer(),
                     VerifyOutputTraits<TextColor>::ToString(attr._background).GetBuffer(),
-                    attr.IsBold(),
-                    attr._wAttrLegacy);
+                    attr.IsIntense(),
+                    static_cast<DWORD>(attr._attrs));
             }
         };
     }

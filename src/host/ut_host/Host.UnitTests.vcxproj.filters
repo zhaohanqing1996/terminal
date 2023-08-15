@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AttrRowTests.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ClipboardTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,9 +54,6 @@
     <ClCompile Include="InputBufferTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ReadWaitTests.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ConsoleArgumentsTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -69,13 +63,7 @@
     <ClCompile Include="VtRendererTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <Clcompile Include="..\..\types\IInputEventStreams.cpp">
-      <Filter>Source Files</Filter>
-    </Clcompile>
     <ClCompile Include="AliasTests.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Utf16ParserTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SearchTests.cpp">
@@ -109,6 +97,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="OutputCellIteratorTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjectTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ConptyOutputTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,7 +2,8 @@ trigger:
   batch: true
   branches:
     include:
-      - master
+      - main
+      - feature/*
   paths:
     exclude:
       - doc/*
@@ -12,27 +13,94 @@ trigger:
 pr:
   branches:
     include:
-      - master
+      - main
+      - feature/*
+  paths:
+    exclude:
+      - doc/*
+      - samples/*
+      - tools/*
+
+variables:
+  - name: runCodesignValidationInjectionBG
+    value: false
 
 #     0.0.yyMM.dd##
 #     0.0.1904.0900
 name: 0.0.$(Date:yyMM).$(Date:dd)$(Rev:rr)
 
-jobs:
-  - template: ./templates/build-console-audit-job.yml
-    parameters:
-      platform: x64
+parameters:
+  - name: auditMode
+    displayName: "Build in Audit Mode (x64)"
+    type: boolean
+    default: true
+  - name: runTests
+    displayName: "Run Tests"
+    type: boolean
+    default: true
+  - name: buildPlatforms
+    type: object
+    default:
+      - x64
+      - x86
+      - arm64
 
-  - template: ./templates/build-console-ci.yml
-    parameters:
-      platform: x64
+stages:
+  - ${{ if eq(parameters.auditMode, true) }}:
+    - stage: Audit_x64
+      displayName: Audit Mode
+      dependsOn: []
+      jobs:
+        - template: ./templates-v2/job-build-project.yml
+          parameters:
+            pool:
+              ${{ if eq(variables['System.CollectionUri'], 'https://dev.azure.com/ms/') }}:
+                name: SHINE-OSS-L
+              ${{ if ne(variables['System.CollectionUri'], 'https://dev.azure.com/ms/') }}:
+                name: SHINE-INT-L
+            buildPlatforms: [x64]
+            buildConfigurations: [AuditMode]
+            buildEverything: true
+            keepAllExpensiveBuildOutputs: false
 
-  - template: ./templates/build-console-ci.yml
-    parameters:
-      platform: x86
+  - stage: CodeHealth
+    displayName: Code Health
+    dependsOn: []
+    jobs:
+      - template: ./templates-v2/job-check-code-format.yml
 
-  - template: ./templates/build-console-ci.yml
-    parameters:
-      platform: ARM64
+  - ${{ each platform in parameters.buildPlatforms }}:
+    - stage: Build_${{ platform }}
+      displayName: Build ${{ platform }}
+      dependsOn: []
+      jobs:
+        - template: ./templates-v2/job-build-project.yml
+          parameters:
+            pool:
+              ${{ if eq(variables['System.CollectionUri'], 'https://dev.azure.com/ms/') }}:
+                name: SHINE-OSS-L
+              ${{ if ne(variables['System.CollectionUri'], 'https://dev.azure.com/ms/') }}:
+                name: SHINE-INT-L
+            buildPlatforms:
+              - ${{ platform }}
+            buildConfigurations: [Release]
+            buildEverything: true
+            keepAllExpensiveBuildOutputs: false
 
-  - template: ./templates/check-formatting.yml
+    - ${{ if eq(parameters.runTests, true) }}:
+      - stage: Test_${{ platform }}
+        displayName: Test ${{ platform }}
+        dependsOn:
+          - Build_${{ platform }}
+        condition: succeeded()
+        jobs:
+          - template: ./templates-v2/job-test-project.yml
+            parameters:
+              platform: ${{ platform }}
+
+  - ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
+    - stage: CodeIndexer
+      displayName: Github CodeNav Indexer
+      dependsOn: []
+      jobs:
+        - template: ./templates-v2/job-index-github-codenav.yml

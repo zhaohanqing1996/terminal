@@ -45,8 +45,8 @@ Notes:
     const auto encodedAttributes = _DisplayAttributesToEncodedAttributes(DisplayAttributes,
                                                                          CompCursorPos);
 
-    std::basic_string_view<BYTE> attributes(encodedAttributes.data(), encodedAttributes.size());
-    std::basic_string_view<WORD> colorArray(colors.data(), colors.size());
+    std::span<const BYTE> attributes(encodedAttributes.data(), encodedAttributes.size());
+    std::span<const WORD> colorArray(colors.data(), colors.size());
 
     return ImeComposeData(CompStr, attributes, colorArray);
 }
@@ -91,11 +91,11 @@ Notes:
     {
         if (CompCursorPos == 0)
         {
-            encodedAttrs[CompCursorPos] |= (BYTE)CONIME_CURSOR_LEFT; // special handling for ConSrv... 0x20 = COMMON_LVB_GRID_SINGLEFLAG + COMMON_LVB_GRID_LVERTICAL
+            encodedAttrs[CompCursorPos] |= CONIME_CURSOR_LEFT; // special handling for ConSrv... 0x20 = COMMON_LVB_GRID_SINGLEFLAG + COMMON_LVB_GRID_LVERTICAL
         }
         else if (CompCursorPos - 1 < DisplayAttributes.size())
         {
-            encodedAttrs[CompCursorPos - 1] |= (BYTE)CONIME_CURSOR_RIGHT; // special handling for ConSrv... 0x10 = COMMON_LVB_GRID_SINGLEFLAG + COMMON_LVB_GRID_RVERTICAL
+            encodedAttrs[CompCursorPos - 1] |= CONIME_CURSOR_RIGHT; // special handling for ConSrv... 0x10 = COMMON_LVB_GRID_SINGLEFLAG + COMMON_LVB_GRID_RVERTICAL
         }
     }
 

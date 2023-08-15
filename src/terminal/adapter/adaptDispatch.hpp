@@ -15,165 +15,304 @@ Author(s):
 #pragma once
 
 #include "termDispatch.hpp"
-#include "DispatchCommon.hpp"
-#include "conGetSet.hpp"
-#include "adaptDefaults.hpp"
+#include "ITerminalApi.hpp"
+#include "FontBuffer.hpp"
+#include "MacroBuffer.hpp"
 #include "terminalOutput.hpp"
-#include <math.h>
+#include "../input/terminalInput.hpp"
+#include "../../types/inc/sgrStack.hpp"
 
-#define XTERM_COLOR_TABLE_SIZE (256)
+// fwdecl unittest classes
+#ifdef UNIT_TESTING
+class AdapterTest;
+#endif
 
 namespace Microsoft::Console::VirtualTerminal
 {
     class AdaptDispatch : public ITermDispatch
     {
+        using Renderer = Microsoft::Console::Render::Renderer;
+        using RenderSettings = Microsoft::Console::Render::RenderSettings;
+
     public:
-        AdaptDispatch(ConGetSet* const pConApi,
-                      AdaptDefaults* const pDefaults);
+        AdaptDispatch(ITerminalApi& api, Renderer& renderer, RenderSettings& renderSettings, TerminalInput& terminalInput);
 
-        void Execute(const wchar_t wchControl) override
-        {
-            _pDefaults->Execute(wchControl);
-        }
-
-        void PrintString(const wchar_t* const rgwch, const size_t cch) override;
         void Print(const wchar_t wchPrintable) override;
+        void PrintString(const std::wstring_view string) override;
 
-        bool CursorUp(_In_ unsigned int const uiDistance) override; // CUU
-        bool CursorDown(_In_ unsigned int const uiDistance) override; // CUD
-        bool CursorForward(_In_ unsigned int const uiDistance) override; // CUF
-        bool CursorBackward(_In_ unsigned int const uiDistance) override; // CUB
-        bool CursorNextLine(_In_ unsigned int const uiDistance) override; // CNL
-        bool CursorPrevLine(_In_ unsigned int const uiDistance) override; // CPL
-        bool CursorHorizontalPositionAbsolute(_In_ unsigned int const uiColumn) override; // CHA
-        bool VerticalLinePositionAbsolute(_In_ unsigned int const uiLine) override; // VPA
-        bool CursorPosition(_In_ unsigned int const uiLine, _In_ unsigned int const uiColumn) override; // CUP
-        bool CursorSavePosition() override; // DECSC
-        bool CursorRestorePosition() override; // DECRC
-        bool CursorVisibility(const bool fIsVisible) override; // DECTCEM
+        bool CursorUp(const VTInt distance) override; // CUU
+        bool CursorDown(const VTInt distance) override; // CUD
+        bool CursorForward(const VTInt distance) override; // CUF
+        bool CursorBackward(const VTInt distance) override; // CUB, BS
+        bool CursorNextLine(const VTInt distance) override; // CNL
+        bool CursorPrevLine(const VTInt distance) override; // CPL
+        bool CursorHorizontalPositionAbsolute(const VTInt column) override; // HPA, CHA
+        bool VerticalLinePositionAbsolute(const VTInt line) override; // VPA
+        bool HorizontalPositionRelative(const VTInt distance) override; // HPR
+        bool VerticalPositionRelative(const VTInt distance) override; // VPR
+        bool CursorPosition(const VTInt line, const VTInt column) override; // CUP, HVP
+        bool CursorSaveState() override; // DECSC
+        bool CursorRestoreState() override; // DECRC
         bool EraseInDisplay(const DispatchTypes::EraseType eraseType) override; // ED
         bool EraseInLine(const DispatchTypes::EraseType eraseType) override; // EL
-        bool EraseCharacters(_In_ unsigned int const uiNumChars) override; // ECH
-        bool InsertCharacter(_In_ unsigned int const uiCount) override; // ICH
-        bool DeleteCharacter(_In_ unsigned int const uiCount) override; // DCH
-        bool SetGraphicsRendition(_In_reads_(cOptions) const DispatchTypes::GraphicsOptions* const rgOptions,
-                                  const size_t cOptions) override; // SGR
-        bool DeviceStatusReport(const DispatchTypes::AnsiStatusType statusType) override; // DSR
-        bool DeviceAttributes() override; // DA
-        bool ScrollUp(_In_ unsigned int const uiDistance) override; // SU
-        bool ScrollDown(_In_ unsigned int const uiDistance) override; // SD
-        bool InsertLine(_In_ unsigned int const uiDistance) override; // IL
-        bool DeleteLine(_In_ unsigned int const uiDistance) override; // DL
-        bool SetColumns(_In_ unsigned int const uiColumns) override; // DECSCPP, DECCOLM
-        bool SetPrivateModes(_In_reads_(cParams) const DispatchTypes::PrivateModeParams* const rParams,
-                             const size_t cParams) override; // DECSET
-        bool ResetPrivateModes(_In_reads_(cParams) const DispatchTypes::PrivateModeParams* const rParams,
-                               const size_t cParams) override; // DECRST
-        bool SetCursorKeysMode(const bool fApplicationMode) override; // DECCKM
-        bool SetKeypadMode(const bool fApplicationMode) override; // DECKPAM, DECKPNM
-        bool EnableCursorBlinking(const bool bEnable) override; // ATT610
-        bool SetOriginMode(const bool fRelativeMode) override; // DECOM
-        bool SetTopBottomScrollingMargins(const SHORT sTopMargin,
-                                          const SHORT sBottomMargin) override; // DECSTBM
+        bool EraseCharacters(const VTInt numChars) override; // ECH
+        bool SelectiveEraseInDisplay(const DispatchTypes::EraseType eraseType) override; // DECSED
+        bool SelectiveEraseInLine(const DispatchTypes::EraseType eraseType) override; // DECSEL
+        bool InsertCharacter(const VTInt count) override; // ICH
+        bool DeleteCharacter(const VTInt count) override; // DCH
+        bool ChangeAttributesRectangularArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right, const VTParameters attrs) override; // DECCARA
+        bool ReverseAttributesRectangularArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right, const VTParameters attrs) override; // DECRARA
+        bool CopyRectangularArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right, const VTInt page, const VTInt dstTop, const VTInt dstLeft, const VTInt dstPage) override; // DECCRA
+        bool FillRectangularArea(const VTParameter ch, const VTInt top, const VTInt left, const VTInt bottom, const VTInt right) override; // DECFRA
+        bool EraseRectangularArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right) override; // DECERA
+        bool SelectiveEraseRectangularArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right) override; // DECSERA
+        bool SelectAttributeChangeExtent(const DispatchTypes::ChangeExtent changeExtent) noexcept override; // DECSACE
+        bool RequestChecksumRectangularArea(const VTInt id, const VTInt page, const VTInt top, const VTInt left, const VTInt bottom, const VTInt right) override; // DECRQCRA
+        bool SetGraphicsRendition(const VTParameters options) override; // SGR
+        bool SetLineRendition(const LineRendition rendition) override; // DECSWL, DECDWL, DECDHL
+        bool SetCharacterProtectionAttribute(const VTParameters options) override; // DECSCA
+        bool PushGraphicsRendition(const VTParameters options) override; // XTPUSHSGR
+        bool PopGraphicsRendition() override; // XTPOPSGR
+        bool DeviceStatusReport(const DispatchTypes::StatusType statusType, const VTParameter id) override; // DSR
+        bool DeviceAttributes() override; // DA1
+        bool SecondaryDeviceAttributes() override; // DA2
+        bool TertiaryDeviceAttributes() override; // DA3
+        bool Vt52DeviceAttributes() override; // VT52 Identify
+        bool RequestTerminalParameters(const DispatchTypes::ReportingPermission permission) override; // DECREQTPARM
+        bool ScrollUp(const VTInt distance) override; // SU
+        bool ScrollDown(const VTInt distance) override; // SD
+        bool InsertLine(const VTInt distance) override; // IL
+        bool DeleteLine(const VTInt distance) override; // DL
+        bool InsertColumn(const VTInt distance) override; // DECIC
+        bool DeleteColumn(const VTInt distance) override; // DECDC
+        bool SetMode(const DispatchTypes::ModeParams param) override; // SM, DECSET
+        bool ResetMode(const DispatchTypes::ModeParams param) override; // RM, DECRST
+        bool RequestMode(const DispatchTypes::ModeParams param) override; // DECRQM
+        bool SetKeypadMode(const bool applicationMode) override; // DECKPAM, DECKPNM
+        bool SetAnsiMode(const bool ansiMode) override; // DECANM
+        bool SetTopBottomScrollingMargins(const VTInt topMargin,
+                                          const VTInt bottomMargin) override; // DECSTBM
+        bool SetLeftRightScrollingMargins(const VTInt leftMargin,
+                                          const VTInt rightMargin) override; // DECSLRM
+        bool WarningBell() override; // BEL
+        bool CarriageReturn() override; // CR
+        bool LineFeed(const DispatchTypes::LineFeedType lineFeedType) override; // IND, NEL, LF, FF, VT
         bool ReverseLineFeed() override; // RI
-        bool SetWindowTitle(const std::wstring_view title) override; // OscWindowTitle
-        bool UseAlternateScreenBuffer() override; // ASBSET
-        bool UseMainScreenBuffer() override; // ASBRST
+        bool BackIndex() override; // DECBI
+        bool ForwardIndex() override; // DECFI
+        bool SetWindowTitle(const std::wstring_view title) override; // OSCWindowTitle
         bool HorizontalTabSet() override; // HTS
-        bool ForwardTab(const SHORT sNumTabs) override; // CHT
-        bool BackwardsTab(const SHORT sNumTabs) override; // CBT
-        bool TabClear(const SHORT sClearType) override; // TBC
-        bool DesignateCharset(const wchar_t wchCharset) override; // DesignateCharset
+        bool ForwardTab(const VTInt numTabs) override; // CHT, HT
+        bool BackwardsTab(const VTInt numTabs) override; // CBT
+        bool TabClear(const DispatchTypes::TabClearType clearType) override; // TBC
+        bool DesignateCodingSystem(const VTID codingSystem) override; // DOCS
+        bool Designate94Charset(const VTInt gsetNumber, const VTID charset) override; // SCS
+        bool Designate96Charset(const VTInt gsetNumber, const VTID charset) override; // SCS
+        bool LockingShift(const VTInt gsetNumber) override; // LS0, LS1, LS2, LS3
+        bool LockingShiftRight(const VTInt gsetNumber) override; // LS1R, LS2R, LS3R
+        bool SingleShift(const VTInt gsetNumber) noexcept override; // SS2, SS3
+        bool AcceptC1Controls(const bool enabled) override; // DECAC1
         bool SoftReset() override; // DECSTR
         bool HardReset() override; // RIS
-        bool EnableDECCOLMSupport(const bool fEnabled) override; // ?40
-        bool EnableVT200MouseMode(const bool fEnabled) override; // ?1000
-        bool EnableUTF8ExtendedMouseMode(const bool fEnabled) override; // ?1005
-        bool EnableSGRExtendedMouseMode(const bool fEnabled) override; // ?1006
-        bool EnableButtonEventMouseMode(const bool fEnabled) override; // ?1002
-        bool EnableAnyEventMouseMode(const bool fEnabled) override; // ?1003
-        bool EnableAlternateScroll(const bool fEnabled) override; // ?1007
+        bool ScreenAlignmentPattern() override; // DECALN
         bool SetCursorStyle(const DispatchTypes::CursorStyle cursorStyle) override; // DECSCUSR
         bool SetCursorColor(const COLORREF cursorColor) override;
 
-        bool SetColorTableEntry(const size_t tableIndex,
-                                const DWORD dwColor) override; // OscColorTable
-        bool SetDefaultForeground(const DWORD dwColor) override; // OSCDefaultForeground
-        bool SetDefaultBackground(const DWORD dwColor) override; // OSCDefaultBackground
+        bool SetClipboard(const std::wstring_view content) override; // OSCSetClipboard
 
-        bool WindowManipulation(const DispatchTypes::WindowManipulationType uiFunction,
-                                _In_reads_(cParams) const unsigned short* const rgusParams,
-                                const size_t cParams) override; // DTTERM_WindowManipulation
+        bool SetColorTableEntry(const size_t tableIndex,
+                                const DWORD color) override; // OSCColorTable
+        bool SetDefaultForeground(const DWORD color) override; // OSCDefaultForeground
+        bool SetDefaultBackground(const DWORD color) override; // OSCDefaultBackground
+        bool AssignColor(const DispatchTypes::ColorItem item, const VTInt fgIndex, const VTInt bgIndex) override; // DECAC
+
+        bool WindowManipulation(const DispatchTypes::WindowManipulationType function,
+                                const VTParameter parameter1,
+                                const VTParameter parameter2) override; // DTTERM_WindowManipulation
+
+        bool AddHyperlink(const std::wstring_view uri, const std::wstring_view params) override;
+        bool EndHyperlink() override;
+
+        bool DoConEmuAction(const std::wstring_view string) override;
+
+        bool DoITerm2Action(const std::wstring_view string) override;
+
+        bool DoFinalTermAction(const std::wstring_view string) override;
+
+        bool DoVsCodeAction(const std::wstring_view string) override;
+
+        StringHandler DownloadDRCS(const VTInt fontNumber,
+                                   const VTParameter startChar,
+                                   const DispatchTypes::DrcsEraseControl eraseControl,
+                                   const DispatchTypes::DrcsCellMatrix cellMatrix,
+                                   const DispatchTypes::DrcsFontSet fontSet,
+                                   const DispatchTypes::DrcsFontUsage fontUsage,
+                                   const VTParameter cellHeight,
+                                   const DispatchTypes::DrcsCharsetSize charsetSize) override; // DECDLD
+
+        StringHandler DefineMacro(const VTInt macroId,
+                                  const DispatchTypes::MacroDeleteControl deleteControl,
+                                  const DispatchTypes::MacroEncoding encoding) override; // DECDMAC
+        bool InvokeMacro(const VTInt macroId) override; // DECINVM
+
+        StringHandler RestoreTerminalState(const DispatchTypes::ReportFormat format) override; // DECRSTS
+
+        StringHandler RequestSetting() override; // DECRQSS
+
+        bool RequestPresentationStateReport(const DispatchTypes::PresentationReportFormat format) override; // DECRQPSR
+        StringHandler RestorePresentationState(const DispatchTypes::PresentationReportFormat format) override; // DECRSPS
+
+        bool PlaySounds(const VTParameters parameters) override; // DECPS
 
     private:
-        enum class CursorDirection
+        enum class Mode
         {
-            Up,
-            Down,
-            Left,
-            Right,
-            NextLine,
-            PrevLine
+            InsertReplace,
+            Origin,
+            Column,
+            AllowDECCOLM,
+            AllowDECSLRM,
+            EraseColor,
+            RectangularChangeExtent
         };
         enum class ScrollDirection
         {
             Up,
             Down
         };
+        struct CursorState
+        {
+            VTInt Row = 1;
+            VTInt Column = 1;
+            bool IsDelayedEOLWrap = false;
+            bool IsOriginModeRelative = false;
+            TextAttribute Attributes = {};
+            TerminalOutput TermOutput = {};
+            bool C1ControlsAccepted = false;
+            unsigned int CodePage = 0;
+        };
+        struct Offset
+        {
+            VTInt Value;
+            bool IsAbsolute;
+            // VT origin is at 1,1 so we need to subtract 1 from absolute positions.
+            static constexpr Offset Absolute(const VTInt value) { return { value - 1, true }; };
+            static constexpr Offset Forward(const VTInt value) { return { value, false }; };
+            static constexpr Offset Backward(const VTInt value) { return { -value, false }; };
+            static constexpr Offset Unchanged() { return Forward(0); };
+        };
+        struct ChangeOps
+        {
+            CharacterAttributes andAttrMask = CharacterAttributes::All;
+            CharacterAttributes xorAttrMask = CharacterAttributes::Normal;
+            std::optional<TextColor> foreground;
+            std::optional<TextColor> background;
+        };
 
-        bool _CursorMovement(const CursorDirection dir, _In_ unsigned int const uiDistance) const;
-        bool _CursorMovePosition(_In_opt_ const unsigned int* const puiRow, _In_opt_ const unsigned int* const puiCol) const;
-        bool _EraseSingleLineHelper(const CONSOLE_SCREEN_BUFFER_INFOEX* const pcsbiex, const DispatchTypes::EraseType eraseType, const SHORT sLineId, const WORD wFillColor) const;
-        void _SetGraphicsOptionHelper(const DispatchTypes::GraphicsOptions opt, _Inout_ WORD* const pAttr);
-        bool _EraseAreaHelper(const COORD coordStartPosition, const COORD coordLastPosition, const WORD wFillColor);
-        bool _EraseSingleLineDistanceHelper(const COORD coordStartPosition, const DWORD dwLength, const WORD wFillColor) const;
+        void _WriteToBuffer(const std::wstring_view string);
+        std::pair<int, int> _GetVerticalMargins(const til::rect& viewport, const bool absolute) noexcept;
+        std::pair<int, int> _GetHorizontalMargins(const til::CoordType bufferWidth) noexcept;
+        bool _CursorMovePosition(const Offset rowOffset, const Offset colOffset, const bool clampInMargins);
+        void _ApplyCursorMovementFlags(Cursor& cursor) noexcept;
+        void _FillRect(TextBuffer& textBuffer, const til::rect& fillRect, const std::wstring_view& fillChar, const TextAttribute& fillAttrs) const;
+        void _SelectiveEraseRect(TextBuffer& textBuffer, const til::rect& eraseRect);
+        void _ChangeRectAttributes(TextBuffer& textBuffer, const til::rect& changeRect, const ChangeOps& changeOps);
+        void _ChangeRectOrStreamAttributes(const til::rect& changeArea, const ChangeOps& changeOps);
+        til::rect _CalculateRectArea(const VTInt top, const VTInt left, const VTInt bottom, const VTInt right, const til::size bufferSize);
         bool _EraseScrollback();
         bool _EraseAll();
-        void _SetGraphicsOptionHelper(const DispatchTypes::GraphicsOptions opt, _Inout_ WORD* const pAttr) const;
-        bool _InsertDeleteHelper(_In_ unsigned int const uiCount, const bool fIsInsert) const;
-        bool _ScrollMovement(const ScrollDirection dir, _In_ unsigned int const uiDistance) const;
-        static void s_DisableAllColors(_Inout_ WORD* const pAttr, const bool fIsForeground);
-        static void s_ApplyColors(_Inout_ WORD* const pAttr, const WORD wApplyThis, const bool fIsForeground);
+        TextAttribute _GetEraseAttributes(const TextBuffer& textBuffer) const noexcept;
+        void _ScrollRectVertically(TextBuffer& textBuffer, const til::rect& scrollRect, const VTInt delta);
+        void _ScrollRectHorizontally(TextBuffer& textBuffer, const til::rect& scrollRect, const VTInt delta);
+        void _InsertDeleteCharacterHelper(const VTInt delta);
+        void _InsertDeleteLineHelper(const VTInt delta);
+        void _InsertDeleteColumnHelper(const VTInt delta);
+        void _ScrollMovement(const VTInt delta);
 
-        bool _DoSetTopBottomScrollingMargins(const SHORT sTopMargin,
-                                             const SHORT sBottomMargin);
-        bool _CursorPositionReport() const;
+        void _DoSetTopBottomScrollingMargins(const VTInt topMargin,
+                                             const VTInt bottomMargin,
+                                             const bool homeCursor = false);
+        void _DoSetLeftRightScrollingMargins(const VTInt leftMargin,
+                                             const VTInt rightMargin,
+                                             const bool homeCursor = false);
 
-        bool _WriteResponse(_In_reads_(cchReply) PCWSTR pwszReply, const size_t cchReply) const;
-        bool _SetResetPrivateModes(_In_reads_(cParams) const DispatchTypes::PrivateModeParams* const rgParams, const size_t cParams, const bool fEnable);
-        bool _PrivateModeParamsHelper(_In_ DispatchTypes::PrivateModeParams const param, const bool fEnable);
-        bool _DoDECCOLMHelper(_In_ unsigned int uiColumns);
+        void _DoLineFeed(TextBuffer& textBuffer, const bool withReturn, const bool wrapForced);
 
-        std::unique_ptr<ConGetSet> _conApi;
-        std::unique_ptr<AdaptDefaults> _pDefaults;
-        TerminalOutput _TermOutput;
+        void _OperatingStatus() const;
+        void _CursorPositionReport(const bool extendedReport);
+        void _MacroSpaceReport() const;
+        void _MacroChecksumReport(const VTParameter id) const;
 
-        COORD _coordSavedCursor;
-        SMALL_RECT _srScrollMargins;
+        void _SetColumnMode(const bool enable);
+        void _SetAlternateScreenBufferMode(const bool enable);
+        bool _PassThroughInputModes();
+        bool _ModeParamsHelper(const DispatchTypes::ModeParams param, const bool enable);
 
-        bool _fIsOriginModeRelative;
-        bool _fIsSavedOriginModeRelative;
+        void _ClearSingleTabStop();
+        void _ClearAllTabStops() noexcept;
+        void _ResetTabStops() noexcept;
+        void _InitTabStopsForWidth(const VTInt width);
 
-        bool _fIsSetColumnsEnabled;
+        StringHandler _RestoreColorTable();
 
-        bool _fIsDECCOLMAllowed;
+        void _ReportSGRSetting() const;
+        void _ReportDECSTBMSetting();
+        void _ReportDECSLRMSetting();
+        void _ReportDECSCASetting() const;
+        void _ReportDECSACESetting() const;
+        void _ReportDECACSetting(const VTInt itemNumber) const;
 
-        bool _fChangedForeground;
-        bool _fChangedBackground;
-        bool _fChangedMetaAttrs;
+        void _ReportCursorInformation();
+        StringHandler _RestoreCursorInformation();
+        void _ReportTabStops();
+        StringHandler _RestoreTabStops();
 
-        bool _SetRgbColorsHelper(_In_reads_(cOptions) const DispatchTypes::GraphicsOptions* const rgOptions,
-                                 const size_t cOptions,
-                                 _Out_ COLORREF* const prgbColor,
-                                 _Out_ bool* const pfIsForeground,
-                                 _Out_ size_t* const pcOptionsConsumed);
+        StringHandler _CreateDrcsPassthroughHandler(const DispatchTypes::DrcsCharsetSize charsetSize);
+        StringHandler _CreatePassthroughHandler();
 
-        bool _SetBoldColorHelper(const DispatchTypes::GraphicsOptions option);
-        bool _SetDefaultColorHelper(const DispatchTypes::GraphicsOptions option);
+        std::vector<bool> _tabStopColumns;
+        bool _initDefaultTabStops = true;
 
-        static bool s_IsXtermColorOption(const DispatchTypes::GraphicsOptions opt);
-        static bool s_IsRgbColorOption(const DispatchTypes::GraphicsOptions opt);
-        static bool s_IsBoldColorOption(const DispatchTypes::GraphicsOptions opt) noexcept;
-        static bool s_IsDefaultColorOption(const DispatchTypes::GraphicsOptions opt) noexcept;
+        ITerminalApi& _api;
+        Renderer& _renderer;
+        RenderSettings& _renderSettings;
+        TerminalInput& _terminalInput;
+        TerminalOutput _termOutput;
+        std::unique_ptr<FontBuffer> _fontBuffer;
+        std::shared_ptr<MacroBuffer> _macroBuffer;
+        std::optional<unsigned int> _initialCodePage;
+
+        // We have two instances of the saved cursor state, because we need
+        // one for the main buffer (at index 0), and another for the alt buffer
+        // (at index 1). The _usingAltBuffer property keeps tracks of which
+        // buffer is active, so can be used as an index into this array to
+        // obtain the saved state that should be currently active.
+        std::array<CursorState, 2> _savedCursorState;
+        bool _usingAltBuffer;
+
+        til::inclusive_rect _scrollMargins;
+
+        til::enumset<Mode> _modes;
+
+        SgrStack _sgrStack;
+
+        size_t _SetRgbColorsHelper(const VTParameters options,
+                                   TextAttribute& attr,
+                                   const bool isForeground) noexcept;
+        void _SetRgbColorsHelperFromSubParams(const VTParameter colorItem,
+                                              const VTSubParameters options,
+                                              TextAttribute& attr) noexcept;
+        size_t _ApplyGraphicsOption(const VTParameters options,
+                                    const size_t optionIndex,
+                                    TextAttribute& attr) noexcept;
+        void _ApplyGraphicsOptionWithSubParams(const VTParameter option,
+                                               const VTSubParameters subParams,
+                                               TextAttribute& attr) noexcept;
+        void _ApplyGraphicsOptions(const VTParameters options,
+                                   TextAttribute& attr) noexcept;
+
+#ifdef UNIT_TESTING
+        friend class AdapterTest;
+#endif
     };
 }

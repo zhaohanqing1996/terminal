@@ -29,21 +29,21 @@ Revision History:
 class OutputCellRect final
 {
 public:
-    OutputCellRect();
-    OutputCellRect(const size_t rows, const size_t cols);
+    OutputCellRect() noexcept;
+    OutputCellRect(const til::CoordType rows, const til::CoordType cols);
 
-    gsl::span<OutputCell> GetRow(const size_t row);
-    OutputCellIterator GetRowIter(const size_t row) const;
+    std::span<OutputCell> GetRow(const til::CoordType row);
+    OutputCellIterator GetRowIter(const til::CoordType row) const;
 
-    size_t Height() const noexcept;
-    size_t Width() const noexcept;
+    til::CoordType Height() const noexcept;
+    til::CoordType Width() const noexcept;
 
 private:
     std::vector<OutputCell> _storage;
 
-    OutputCell* _FindRowOffset(const size_t row);
-    const OutputCell* _FindRowOffset(const size_t row) const;
+    OutputCell* _FindRowOffset(const til::CoordType row);
+    const OutputCell* _FindRowOffset(const til::CoordType row) const;
 
-    size_t _cols;
-    size_t _rows;
+    til::CoordType _cols;
+    til::CoordType _rows;
 };

@@ -39,18 +39,18 @@ public:
     static void InitHistory(CommandHistory& history) noexcept
     {
         history.Empty();
-        history.Flags |= CLE_ALLOCATED;
+        history.Flags |= CommandHistory::CLE_ALLOCATED;
         VERIFY_SUCCEEDED(history.Add(L"I'm a little teapot", false));
         VERIFY_SUCCEEDED(history.Add(L"hear me shout", false));
         VERIFY_SUCCEEDED(history.Add(L"here is my handle", false));
         VERIFY_SUCCEEDED(history.Add(L"here is my spout", false));
-        VERIFY_ARE_EQUAL(history.GetNumberOfCommands(), 4u);
+        VERIFY_ARE_EQUAL(history.GetNumberOfCommands(), 4);
     }
 
     static void InitLongHistory(CommandHistory& history) noexcept
     {
         history.Empty();
-        history.Flags |= CLE_ALLOCATED;
+        history.Flags |= CommandHistory::CLE_ALLOCATED;
         VERIFY_SUCCEEDED(history.Add(L"Because I could not stop for Death", false));
         VERIFY_SUCCEEDED(history.Add(L"He kindly stopped for me", false));
         VERIFY_SUCCEEDED(history.Add(L"The carriage held but just Ourselves", false));
@@ -79,6 +79,6 @@ public:
         VERIFY_SUCCEEDED(history.Add(L"Since then - 'tis Centuries - and yet", false));
         VERIFY_SUCCEEDED(history.Add(L"Feels shorter than the Day", false));
         VERIFY_SUCCEEDED(history.Add(L"~ Emily Dickinson", false));
-        VERIFY_ARE_EQUAL(history.GetNumberOfCommands(), 28u);
+        VERIFY_ARE_EQUAL(history.GetNumberOfCommands(), 28);
     }
 };

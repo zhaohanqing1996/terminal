@@ -43,7 +43,7 @@
 
         // If we get to here, we have transferred ownership of the server handle to the console, so release it.
         // Keep a copy of the value so we can open the client handles even though we're no longer the owner.
-        HANDLE const hServer = ServerHandle.release();
+        const auto hServer = ServerHandle.release();
 
         // Now that the console object was created, we're in a state that lets us
         // create the default io objects.
@@ -86,10 +86,14 @@
             HostStartupInfo.cb = sizeof(STARTUPINFO);
             GetStartupInfoW(&HostStartupInfo);
 
-            // If we were started with Title is Link Name, then pass the flag and the link name down to the child.
+            // Pass the title we were started with down to our child process.
+            // Conhost itself absolutely doesn't care about this value, but the
+            // child might.
+            StartupInformation.StartupInfo.lpTitle = HostStartupInfo.lpTitle;
+            // If we were started with Title is Link Name, then pass the flag
+            // down to the child. (the link name was already passed down above)
             if (WI_IsFlagSet(HostStartupInfo.dwFlags, STARTF_TITLEISLINKNAME))
             {
-                StartupInformation.StartupInfo.lpTitle = HostStartupInfo.lpTitle;
                 StartupInformation.StartupInfo.dwFlags |= STARTF_TITLEISLINKNAME;
             }
         }
@@ -98,13 +102,13 @@
 
         // Call first time to find size
         SIZE_T AttributeListSize;
-        InitializeProcThreadAttributeList(NULL,
+        InitializeProcThreadAttributeList(nullptr,
                                           2,
                                           0,
                                           &AttributeListSize);
 
         // Alloc space
-        wistd::unique_ptr<BYTE[]> AttributeList = wil::make_unique_nothrow<BYTE[]>(AttributeListSize);
+        auto AttributeList = wil::make_unique_nothrow<BYTE[]>(AttributeListSize);
         RETURN_IF_NULL_ALLOC(AttributeList);
 
         StartupInformation.lpAttributeList = reinterpret_cast<PPROC_THREAD_ATTRIBUTE_LIST>(AttributeList.get());
@@ -150,21 +154,11 @@
         }
 
         // Expand any environment variables present in the command line string.
-        // - Get needed size
-        DWORD cchCmdLineExpanded = ExpandEnvironmentStringsW(pwszCmdLine, nullptr, 0);
-        RETURN_LAST_ERROR_IF(0 == cchCmdLineExpanded);
-
-        // - Allocate space to hold result
-        wistd::unique_ptr<wchar_t[]> CmdLineMutable = wil::make_unique_nothrow<wchar_t[]>(cchCmdLineExpanded);
-        RETURN_IF_NULL_ALLOC(CmdLineMutable);
-
-        // - Expand string into allocated space
-        RETURN_LAST_ERROR_IF(0 == ExpandEnvironmentStringsW(pwszCmdLine, CmdLineMutable.get(), cchCmdLineExpanded));
-
+        auto cmdLine = wil::ExpandEnvironmentStringsW<std::wstring>(pwszCmdLine);
         // Call create process
         wil::unique_process_information ProcessInformation;
         RETURN_IF_WIN32_BOOL_FALSE(CreateProcessW(NULL,
-                                                  CmdLineMutable.get(),
+                                                  cmdLine.data(),
                                                   NULL,
                                                   NULL,
                                                   TRUE,

@@ -26,7 +26,7 @@ public:
 
     // NOTE: This class must have a virtual method for the stored "this" pointers to match what we're actually looking for.
     // If there is no virtual method, we may have the "this" pointer be offset by 8 from the actual object that inherits ConsoleObjectHeader.
-    virtual ~ConsoleObjectHeader(){};
+    virtual ~ConsoleObjectHeader() = default;
 
     [[nodiscard]] HRESULT AllocateIoHandle(const ConsoleHandleData::HandleType ulHandleType,
                                            const ACCESS_MASK amDesired,
@@ -47,4 +47,8 @@ private:
     ULONG _ulWriterCount;
     ULONG _ulReadShareCount;
     ULONG _ulWriteShareCount;
+
+#ifdef UNIT_TESTING
+    friend class ObjectTests;
+#endif
 };

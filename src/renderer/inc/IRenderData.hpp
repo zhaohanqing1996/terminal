@@ -16,9 +16,7 @@ Author(s):
 
 #include "../../host/conimeinfo.h"
 #include "../../buffer/out/TextAttribute.hpp"
-#include "../../types/inc/viewport.hpp"
 
-class TextBuffer;
 class Cursor;
 
 namespace Microsoft::Console::Render
@@ -28,9 +26,9 @@ namespace Microsoft::Console::Render
         // This is where the data is stored
         const TextBuffer& buffer;
 
-        // This is where the top left of the stored buffer should be overlayed on the screen
+        // This is where the top left of the stored buffer should be overlaid on the screen
         // (relative to the current visible viewport)
-        const COORD origin;
+        const til::point origin;
 
         // This is the area of the buffer that is actually used for overlay.
         // Anything outside of this is considered empty by the overlay and shouldn't be used
@@ -41,36 +39,41 @@ namespace Microsoft::Console::Render
     class IRenderData
     {
     public:
-        virtual ~IRenderData() = 0;
+        virtual ~IRenderData() = default;
+
+        // This block used to be IBaseData.
         virtual Microsoft::Console::Types::Viewport GetViewport() noexcept = 0;
-        virtual const TextBuffer& GetTextBuffer() noexcept = 0;
-        virtual const FontInfo& GetFontInfo() noexcept = 0;
-        virtual const TextAttribute GetDefaultBrushColors() noexcept = 0;
+        virtual til::point GetTextBufferEndPosition() const noexcept = 0;
+        virtual const TextBuffer& GetTextBuffer() const noexcept = 0;
+        virtual const FontInfo& GetFontInfo() const noexcept = 0;
+        virtual std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept = 0;
+        virtual void LockConsole() noexcept = 0;
+        virtual void UnlockConsole() noexcept = 0;
 
-        virtual const COLORREF GetForegroundColor(const TextAttribute& attr) const noexcept = 0;
-        virtual const COLORREF GetBackgroundColor(const TextAttribute& attr) const noexcept = 0;
-
-        virtual COORD GetCursorPosition() const noexcept = 0;
+        // This block used to be the original IRenderData.
+        virtual til::point GetCursorPosition() const noexcept = 0;
         virtual bool IsCursorVisible() const noexcept = 0;
         virtual bool IsCursorOn() const noexcept = 0;
         virtual ULONG GetCursorHeight() const noexcept = 0;
         virtual CursorType GetCursorStyle() const noexcept = 0;
         virtual ULONG GetCursorPixelWidth() const noexcept = 0;
-        virtual COLORREF GetCursorColor() const noexcept = 0;
-        virtual bool IsCursorDoubleWidth() const noexcept = 0;
-
+        virtual bool IsCursorDoubleWidth() const = 0;
         virtual const std::vector<RenderOverlay> GetOverlays() const noexcept = 0;
-
         virtual const bool IsGridLineDrawingAllowed() noexcept = 0;
+        virtual const std::wstring_view GetConsoleTitle() const noexcept = 0;
+        virtual const std::wstring GetHyperlinkUri(uint16_t id) const = 0;
+        virtual const std::wstring GetHyperlinkCustomId(uint16_t id) const = 0;
+        virtual const std::vector<size_t> GetPatternId(const til::point location) const = 0;
 
-        virtual std::vector<Microsoft::Console::Types::Viewport> GetSelectionRects() noexcept = 0;
-
-        virtual const std::wstring GetConsoleTitle() const noexcept = 0;
-
-        virtual void LockConsole() noexcept = 0;
-        virtual void UnlockConsole() noexcept = 0;
+        // This block used to be IUiaData.
+        virtual std::pair<COLORREF, COLORREF> GetAttributeColors(const TextAttribute& attr) const noexcept = 0;
+        virtual const bool IsSelectionActive() const = 0;
+        virtual const bool IsBlockSelection() const = 0;
+        virtual void ClearSelection() = 0;
+        virtual void SelectNewRegion(const til::point coordStart, const til::point coordEnd) = 0;
+        virtual const til::point GetSelectionAnchor() const noexcept = 0;
+        virtual const til::point GetSelectionEnd() const noexcept = 0;
+        virtual void ColorSelection(const til::point coordSelectionStart, const til::point coordSelectionEnd, const TextAttribute attr) = 0;
+        virtual const bool IsUiaDataInitialized() const noexcept = 0;
     };
-
-    // See docs/virtual-dtors.md for an explanation of why this is weird.
-    inline IRenderData::~IRenderData() {}
 }

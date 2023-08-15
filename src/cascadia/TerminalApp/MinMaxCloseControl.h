@@ -1,13 +1,13 @@
-﻿//
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+//
 // Declaration of the MainUserControl class.
 //
 
 #pragma once
 
-#include "winrt/Windows.UI.Xaml.h"
-#include "winrt/Windows.UI.Xaml.Markup.h"
-#include "winrt/Windows.UI.Xaml.Interop.h"
 #include "MinMaxCloseControl.g.h"
+#include <ThrottledFunc.h>
 
 namespace winrt::TerminalApp::implementation
 {
@@ -15,23 +15,29 @@ namespace winrt::TerminalApp::implementation
     {
         MinMaxCloseControl();
 
-        void Minimize_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
-        void Maximize_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
-        void Close_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::RoutedEventArgs const& e);
-        void DragBar_DoubleTapped(winrt::Windows::Foundation::IInspectable const& sender, winrt::Windows::UI::Xaml::Input::DoubleTappedRoutedEventArgs const& e);
+        void SetWindowVisualState(WindowVisualState visualState);
 
-        uint64_t ParentWindowHandle() const;
-        void ParentWindowHandle(uint64_t handle);
+        void HoverButton(CaptionButton button);
+        void PressButton(CaptionButton button);
+        void ReleaseButtons();
 
-    private:
-        void _OnMaximize(byte flag);
-        HWND _window{ nullptr }; // non-owning handle; should not be freed in the dtor.
+        void _MinimizeClick(const winrt::Windows::Foundation::IInspectable& sender,
+                            const winrt::Windows::UI::Xaml::RoutedEventArgs& e);
+        void _MaximizeClick(const winrt::Windows::Foundation::IInspectable& sender,
+                            const winrt::Windows::UI::Xaml::RoutedEventArgs& e);
+        void _CloseClick(const winrt::Windows::Foundation::IInspectable& sender,
+                         const winrt::Windows::UI::Xaml::RoutedEventArgs& e);
+
+        TYPED_EVENT(MinimizeClick, TerminalApp::MinMaxCloseControl, winrt::Windows::UI::Xaml::RoutedEventArgs);
+        TYPED_EVENT(MaximizeClick, TerminalApp::MinMaxCloseControl, winrt::Windows::UI::Xaml::RoutedEventArgs);
+        TYPED_EVENT(CloseClick, TerminalApp::MinMaxCloseControl, winrt::Windows::UI::Xaml::RoutedEventArgs);
+
+        std::shared_ptr<ThrottledFuncTrailing<winrt::Windows::UI::Xaml::Controls::Button>> _displayToolTip{ nullptr };
+        std::optional<CaptionButton> _lastPressedButton{ std::nullopt };
     };
 }
 
 namespace winrt::TerminalApp::factory_implementation
 {
-    struct MinMaxCloseControl : MinMaxCloseControlT<MinMaxCloseControl, implementation::MinMaxCloseControl>
-    {
-    };
+    BASIC_FACTORY(MinMaxCloseControl);
 }

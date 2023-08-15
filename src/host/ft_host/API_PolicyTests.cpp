@@ -3,7 +3,7 @@
 
 #include "precomp.h"
 
-using WEX::Logging::Log;
+using namespace WEX::Logging;
 
 // This class is intended to test restrictions placed on APIs from within a UWP application context
 class PolicyTests
@@ -15,6 +15,7 @@ class PolicyTests
 #ifdef __INSIDE_WINDOWS
     BEGIN_TEST_METHOD(WrongWayVerbsUAP)
         TEST_METHOD_PROPERTY(L"RunAs", L"UAP")
+        TEST_METHOD_PROPERTY(L"UAP:AppxManifest", L"MUA")
     END_TEST_METHOD();
 #endif
 

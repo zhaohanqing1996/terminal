@@ -11,9 +11,8 @@
 // - Constructor to set default properties for Cursor
 // Arguments:
 // - ulSize - The height of the cursor within this buffer
-Cursor::Cursor(const ULONG ulSize, TextBuffer& parentBuffer) :
+Cursor::Cursor(const ULONG ulSize, TextBuffer& parentBuffer) noexcept :
     _parentBuffer{ parentBuffer },
-    _cPosition{ 0 },
     _fHasMoved(false),
     _fIsVisible(true),
     _fIsOn(true),
@@ -23,21 +22,16 @@ Cursor::Cursor(const ULONG ulSize, TextBuffer& parentBuffer) :
     _fIsConversionArea(false),
     _fIsPopupShown(false),
     _fDelayedEolWrap(false),
-    _coordDelayedAt{ 0 },
     _fDeferCursorRedraw(false),
     _fHaveDeferredCursorRedraw(false),
     _ulSize(ulSize),
-    _cursorType(CursorType::Legacy),
-    _fUseColor(false),
-    _color(s_InvertCursorColor)
+    _cursorType(CursorType::Legacy)
 {
 }
 
-Cursor::~Cursor()
-{
-}
+Cursor::~Cursor() = default;
 
-COORD Cursor::GetPosition() const noexcept
+til::point Cursor::GetPosition() const noexcept
 {
     return _cPosition;
 }
@@ -87,36 +81,43 @@ ULONG Cursor::GetSize() const noexcept
     return _ulSize;
 }
 
-void Cursor::SetHasMoved(const bool fHasMoved)
+void Cursor::SetHasMoved(const bool fHasMoved) noexcept
 {
     _fHasMoved = fHasMoved;
 }
 
-void Cursor::SetIsVisible(const bool fIsVisible)
+void Cursor::SetIsVisible(const bool fIsVisible) noexcept
 {
     _fIsVisible = fIsVisible;
     _RedrawCursor();
 }
 
-void Cursor::SetIsOn(const bool fIsOn)
+void Cursor::SetIsOn(const bool fIsOn) noexcept
 {
     _fIsOn = fIsOn;
     _RedrawCursorAlways();
 }
 
-void Cursor::SetBlinkingAllowed(const bool fBlinkingAllowed)
+void Cursor::SetBlinkingAllowed(const bool fBlinkingAllowed) noexcept
 {
     _fBlinkingAllowed = fBlinkingAllowed;
+    // GH#2642 - From what we've gathered from other terminals, when blinking is
+    // disabled, the cursor should remain On always, and have the visibility
+    // controlled by the IsVisible property. So when you do a printf "\e[?12l"
+    // to disable blinking, the cursor stays stuck On. At this point, only the
+    // cursor visibility property controls whether the user can see it or not.
+    // (Yes, the cursor can be On and NOT Visible)
+    _fIsOn = true;
     _RedrawCursorAlways();
 }
 
-void Cursor::SetIsDouble(const bool fIsDouble)
+void Cursor::SetIsDouble(const bool fIsDouble) noexcept
 {
     _fIsDouble = fIsDouble;
     _RedrawCursor();
 }
 
-void Cursor::SetIsConversionArea(const bool fIsConversionArea)
+void Cursor::SetIsConversionArea(const bool fIsConversionArea) noexcept
 {
     // Functionally the same as "Hide cursor"
     // Never called with TRUE, it's only used in the creation of a
@@ -125,28 +126,27 @@ void Cursor::SetIsConversionArea(const bool fIsConversionArea)
     _RedrawCursorAlways();
 }
 
-void Cursor::SetIsPopupShown(const bool fIsPopupShown)
+void Cursor::SetIsPopupShown(const bool fIsPopupShown) noexcept
 {
     // Functionally the same as "Hide cursor"
     _fIsPopupShown = fIsPopupShown;
     _RedrawCursorAlways();
 }
 
-void Cursor::SetDelay(const bool fDelay)
+void Cursor::SetDelay(const bool fDelay) noexcept
 {
     _fDelay = fDelay;
 }
 
-void Cursor::SetSize(const ULONG ulSize)
+void Cursor::SetSize(const ULONG ulSize) noexcept
 {
     _ulSize = ulSize;
     _RedrawCursor();
 }
 
-void Cursor::SetStyle(const ULONG ulSize, const COLORREF color, const CursorType type) noexcept
+void Cursor::SetStyle(const ULONG ulSize, const CursorType type) noexcept
 {
     _ulSize = ulSize;
-    _color = color;
     _cursorType = type;
 
     _RedrawCursor();
@@ -190,64 +190,63 @@ void Cursor::_RedrawCursorAlways() noexcept
 {
     try
     {
-        _parentBuffer.GetRenderTarget().TriggerRedrawCursor(&_cPosition);
+        _parentBuffer.TriggerRedrawCursor(_cPosition);
     }
     CATCH_LOG();
 }
 
-void Cursor::SetPosition(const COORD cPosition)
+void Cursor::SetPosition(const til::point cPosition) noexcept
 {
     _RedrawCursor();
-    _cPosition.X = cPosition.X;
-    _cPosition.Y = cPosition.Y;
+    _cPosition = cPosition;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::SetXPosition(const int NewX)
+void Cursor::SetXPosition(const til::CoordType NewX) noexcept
 {
     _RedrawCursor();
-    _cPosition.X = (SHORT)NewX;
+    _cPosition.x = NewX;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::SetYPosition(const int NewY)
+void Cursor::SetYPosition(const til::CoordType NewY) noexcept
 {
     _RedrawCursor();
-    _cPosition.Y = (SHORT)NewY;
+    _cPosition.y = NewY;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::IncrementXPosition(const int DeltaX)
+void Cursor::IncrementXPosition(const til::CoordType DeltaX) noexcept
 {
     _RedrawCursor();
-    _cPosition.X += (SHORT)DeltaX;
+    _cPosition.x += DeltaX;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::IncrementYPosition(const int DeltaY)
+void Cursor::IncrementYPosition(const til::CoordType DeltaY) noexcept
 {
     _RedrawCursor();
-    _cPosition.Y += (SHORT)DeltaY;
+    _cPosition.y += DeltaY;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::DecrementXPosition(const int DeltaX)
+void Cursor::DecrementXPosition(const til::CoordType DeltaX) noexcept
 {
     _RedrawCursor();
-    _cPosition.X -= (SHORT)DeltaX;
+    _cPosition.x -= DeltaX;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
 
-void Cursor::DecrementYPosition(const int DeltaY)
+void Cursor::DecrementYPosition(const til::CoordType DeltaY) noexcept
 {
     _RedrawCursor();
-    _cPosition.Y -= (SHORT)DeltaY;
+    _cPosition.y -= DeltaY;
     _RedrawCursor();
     ResetDelayEOLWrap();
 }
@@ -262,7 +261,7 @@ void Cursor::DecrementYPosition(const int DeltaY)
 // - OtherCursor - The cursor to copy properties from
 // Return Value:
 // - <none>
-void Cursor::CopyProperties(const Cursor& OtherCursor)
+void Cursor::CopyProperties(const Cursor& OtherCursor) noexcept
 {
     // We shouldn't copy the position as it will be already rearranged by the resize operation.
     //_cPosition                    = pOtherCursor->_cPosition;
@@ -282,40 +281,44 @@ void Cursor::CopyProperties(const Cursor& OtherCursor)
     _fDeferCursorRedraw = OtherCursor._fDeferCursorRedraw;
     _fHaveDeferredCursorRedraw = OtherCursor._fHaveDeferredCursorRedraw;
 
-    // Size will be handled seperately in the resize operation.
+    // Size will be handled separately in the resize operation.
     //_ulSize                       = OtherCursor._ulSize;
     _cursorType = OtherCursor._cursorType;
-    _color = OtherCursor._color;
 }
 
-void Cursor::DelayEOLWrap(const COORD coordDelayedAt)
+void Cursor::DelayEOLWrap() noexcept
 {
-    _coordDelayedAt = coordDelayedAt;
+    _coordDelayedAt = _cPosition;
     _fDelayedEolWrap = true;
 }
 
-void Cursor::ResetDelayEOLWrap()
+void Cursor::ResetDelayEOLWrap() noexcept
 {
-    _coordDelayedAt = { 0 };
+    _coordDelayedAt = {};
     _fDelayedEolWrap = false;
 }
 
-COORD Cursor::GetDelayedAtPosition() const
+til::point Cursor::GetDelayedAtPosition() const noexcept
 {
     return _coordDelayedAt;
 }
 
-bool Cursor::IsDelayedEOLWrap() const
+bool Cursor::IsDelayedEOLWrap() const noexcept
 {
     return _fDelayedEolWrap;
 }
 
-void Cursor::StartDeferDrawing()
+void Cursor::StartDeferDrawing() noexcept
 {
     _fDeferCursorRedraw = true;
 }
 
-void Cursor::EndDeferDrawing()
+bool Cursor::IsDeferDrawing() noexcept
+{
+    return _fDeferCursorRedraw;
+}
+
+void Cursor::EndDeferDrawing() noexcept
 {
     if (_fHaveDeferredCursorRedraw)
     {
@@ -325,27 +328,12 @@ void Cursor::EndDeferDrawing()
     _fDeferCursorRedraw = FALSE;
 }
 
-const CursorType Cursor::GetType() const
+const CursorType Cursor::GetType() const noexcept
 {
     return _cursorType;
 }
 
-const bool Cursor::IsUsingColor() const
-{
-    return GetColor() != INVALID_COLOR;
-}
-
-const COLORREF Cursor::GetColor() const
-{
-    return _color;
-}
-
-void Cursor::SetColor(const unsigned int color)
-{
-    _color = (COLORREF)color;
-}
-
-void Cursor::SetType(const CursorType type)
+void Cursor::SetType(const CursorType type) noexcept
 {
     _cursorType = type;
 }

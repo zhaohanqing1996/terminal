@@ -8,9 +8,9 @@ Settings in the Windows Console Host can be a bit tricky to understand. This is 
 |---------------------------|-----------------------|--------------------------------------|
 |`FontSize`                 |Coordinate (REG_DWORD) |Size of font in pixels                |
 |`FontFamily`               |REG_DWORD              |GDI Font family                       |
-|`ScreenBufferSize`         |Coordinate (REG_DWORD) |Size of the screen buffer in WxH characters |
+|`ScreenBufferSize`         |Coordinate (REG_DWORD) |Size of the screen buffer in WxH characters\*\* |
 |`CursorSize`               |REG_DWORD              |Cursor height as percentage of a single character |
-|`WindowSize`               |Coordinate (REG_DWORD) |Initial size of the window in WxH characters |
+|`WindowSize`               |Coordinate (REG_DWORD) |Initial size of the window in WxH characters\*\* |
 |`WindowPosition`           |Coordinate (REG_DWORD) |Initial position of the window in WxH pixels (if not set, use auto-positioning) |
 |`WindowAlpha`              |REG_DWORD              |Opacity of the window (valid range: 0x4D-0xFF) |
 |`ScreenColors`             |REG_DWORD              |Default foreground and background colors |
@@ -39,6 +39,10 @@ Settings in the Windows Console Host can be a bit tricky to understand. This is 
 
 *: Only applies to the improved version of the Windows Console Host
 
+**: WxH stands for Width by Height, it's the fact that things like a Window size
+store the Width and Height values in the high and low word in the registry's
+double word values.
+
 ## The Settings Hierarchy
 
 Settings are persisted to a variety of locations depending on how they are modified and how the Windows Console Host was invoked:
@@ -55,7 +59,7 @@ To modify settings specific to the current application, invoke the `Properties` 
 
 When console applications are launched, the Windows Console Host determines which settings to use by overlaying settings from the above locations.
 
-1. Initialize settings based on hardcoded defaults
+1. Initialize settings based on hard-coded defaults
 2. Overlay settings specified by the user's configured defaults
 3. Overlay application-specific settings from either the registry or the shortcut file, depending on how the application was launched
 

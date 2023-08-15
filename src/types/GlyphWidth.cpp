@@ -5,12 +5,14 @@
 #include "inc/CodepointWidthDetector.hpp"
 #include "inc/GlyphWidth.hpp"
 
+#pragma warning(suppress : 26426)
+// TODO GH 2676 - remove warning suppression and decide what to do re: singleton instance of CodepointWidthDetector
 static CodepointWidthDetector widthDetector;
 
 // Function Description:
 // - determines if the glyph represented by the string of characters should be
 //      wide or not. See CodepointWidthDetector::IsWide
-bool IsGlyphFullWidth(const std::wstring_view glyph)
+bool IsGlyphFullWidth(const std::wstring_view& glyph) noexcept
 {
     return widthDetector.IsWide(glyph);
 }
@@ -18,9 +20,9 @@ bool IsGlyphFullWidth(const std::wstring_view glyph)
 // Function Description:
 // - determines if the glyph represented by the single character should be
 //      wide or not. See CodepointWidthDetector::IsWide
-bool IsGlyphFullWidth(const wchar_t wch)
+bool IsGlyphFullWidth(const wchar_t wch) noexcept
 {
-    return widthDetector.IsWide(wch);
+    return wch < 0x80 ? false : IsGlyphFullWidth({ &wch, 1 });
 }
 
 // Function Description:
@@ -33,9 +35,9 @@ bool IsGlyphFullWidth(const wchar_t wch)
 // - pfnFallback - the function to use as the fallback method.
 // Return Value:
 // - <none>
-void SetGlyphWidthFallback(std::function<bool(const std::wstring_view)> pfnFallback)
+void SetGlyphWidthFallback(std::function<bool(const std::wstring_view&)> pfnFallback) noexcept
 {
-    widthDetector.SetFallbackMethod(pfnFallback);
+    widthDetector.SetFallbackMethod(std::move(pfnFallback));
 }
 
 // Function Description:
@@ -44,7 +46,7 @@ void SetGlyphWidthFallback(std::function<bool(const std::wstring_view)> pfnFallb
 // - <none>
 // Return Value:
 // - <none>
-void NotifyGlyphWidthFontChanged()
+void NotifyGlyphWidthFontChanged() noexcept
 {
     widthDetector.NotifyFontChanged();
 }

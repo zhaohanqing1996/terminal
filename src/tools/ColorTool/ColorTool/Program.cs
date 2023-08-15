@@ -1,9 +1,10 @@
-﻿//
+//
 // Copyright (C) Microsoft.  All rights reserved.
 // Licensed under the terms described in the LICENSE file in the root of this project.
 //
 
 using ColorTool.ConsoleTargets;
+using static ColorTool.ConsoleAPI;
 using ColorTool.SchemeWriters;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,8 @@ namespace ColorTool
         private static bool setProperties = true;
         private static bool setUnixStyle = false;
         private static bool setTerminalStyle = false;
+        private static bool compactTableStyle = true;
+        private static bool printCurrent = false;
 
         public static void Main(string[] args)
         {
@@ -32,9 +35,36 @@ namespace ColorTool
                 string arg = args[i];
                 switch (arg)
                 {
+                    case "-?":
+                    case "--help":
+                        Usage();
+                        return;
                     case "-c":
                     case "--current":
-                        ColorTable.PrintTable();
+                        printCurrent = true;
+                        break;
+                    case "-l":
+                    case "--location":
+                        SchemeManager.PrintSchemesDirectory();
+                        return;
+                    case "-o":
+                    case "--output":
+                        if (i + 1 < args.Length)
+                        {
+                            new IniSchemeWriter().ExportCurrentAsIni(args[i + 1]);
+                        }
+                        else
+                        {
+                            OutputUsage();
+                        }
+                        return;
+                    case "-s":
+                    case "--schemes":
+                        SchemeManager.PrintSchemes();
+                        return;
+                    case "-v":
+                    case "--version":
+                        Version();
                         return;
                     case "-e":
                     case "--errors":
@@ -54,46 +84,29 @@ namespace ColorTool
                         setDefaults = true;
                         setProperties = true;
                         break;
-                    case "-?":
-                    case "--help":
-                        Usage();
-                        return;
-                    case "-v":
-                    case "--version":
-                        Version();
-                        return;
-                    case "-l":
-                    case "--location":
-                        SchemeManager.PrintSchemesDirectory();
-                        return;
                     case "-x":
                     case "--xterm":
                         setUnixStyle = true;
                         setProperties = true;
+                        break;
+                    case "-a":
+                    case "--allcolors":
+                        compactTableStyle = false;
                         break;
                     case "-t":
                     case "--terminal":
                         setTerminalStyle = true;
                         setProperties = true;
                         break;
-                    case "-o":
-                    case "--output":
-                        if (i + 1 < args.Length)
-                        {
-                            new IniSchemeWriter().ExportCurrentAsIni(args[i + 1]);
-                        }
-                        else
-                        {
-                            OutputUsage();
-                        }
-                        return;
-                    case "-s":
-                    case "--schemes":
-                        SchemeManager.PrintSchemes();
-                        return;
                     default:
                         break;
                 }
+            }
+            if (printCurrent)
+            {
+                if (setUnixStyle) DoInVTMode(() => ColorTable.PrintTableWithVt(compactTableStyle));
+                else ColorTable.PrintTable(compactTableStyle);
+                return;
             }
 
             string schemeName = args[args.Length - 1];
@@ -108,7 +121,7 @@ namespace ColorTool
 
             foreach (var target in GetConsoleTargets())
             {
-                target.ApplyColorScheme(colorScheme, quietMode);
+                target.ApplyColorScheme(colorScheme, quietMode, compactTableStyle);
             }
         }
 
@@ -123,11 +136,29 @@ namespace ColorTool
             Console.WriteLine(Resources.OutputUsage);
         }
 
+        public static bool DoInVTMode(Action VTAction)
+        {
+            IntPtr hOut = GetStdOutputHandle();
+            uint requestedMode;
+            uint originalConsoleMode;
+            bool succeeded = GetConsoleMode(hOut, out originalConsoleMode);
+            if (succeeded)
+            {
+                requestedMode = originalConsoleMode | (uint)ConsoleAPI.ConsoleOutputModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                SetConsoleMode(hOut, requestedMode);
+            }
+
+            VTAction();
+
+            if (succeeded) SetConsoleMode(hOut, originalConsoleMode);
+            return succeeded;
+        }
+
         private static void Version()
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(assembly.Location);
-            Console.WriteLine($"colortool v{info.FileVersion}");
+            Console.WriteLine($"ColorTool v{info.FileVersion}");
         }
 
         /// <summary>

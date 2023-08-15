@@ -22,18 +22,18 @@ Revision History:
 
 #pragma once
 
-#define CONIME_ATTRCOLOR_SIZE 8
+constexpr unsigned short CONIME_ATTRCOLOR_SIZE = 8;
 
-#define CONIME_CURSOR_RIGHT 0x10
-#define CONIME_CURSOR_LEFT 0x20
+constexpr BYTE CONIME_CURSOR_RIGHT = 0x10;
+constexpr BYTE CONIME_CURSOR_LEFT = 0x20;
 
 [[nodiscard]] HRESULT ImeStartComposition();
 
 [[nodiscard]] HRESULT ImeEndComposition();
 
 [[nodiscard]] HRESULT ImeComposeData(std::wstring_view text,
-                                     std::basic_string_view<BYTE> attributes,
-                                     std::basic_string_view<WORD> colorArray);
+                                     std::span<const BYTE> attributes,
+                                     std::span<const WORD> colorArray);
 
 [[nodiscard]] HRESULT ImeClearComposeData();
 
